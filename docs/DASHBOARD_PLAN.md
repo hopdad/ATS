@@ -147,17 +147,47 @@ the key *you* actually use.
 If the file is unreadable or a binding is absent, that button renders as unavailable and
 says why. It never guesses.
 
-### The control set
+### The control set — situational, not routine
 
-Grouped by what they do, not by keyboard layout:
+The phone is not for the things you do constantly. Lights, cruise and the horn are already
+muscle memory on the wheel or the keyboard, and a phone is a worse place for them. The
+phone earns its keep on the controls you need **in a specific moment** and can never
+remember the key for.
 
-- **Lights** — park, low beam, high beam, beacon, hazards, indicators L/R, interior
-- **Wipers** — cycle
-- **Signals** — horn, air horn (momentary: held, not toggled)
-- **Drivetrain** — engine start/stop, parking brake, retarder, differential lock
-- **Cruise** — set, resume, +, −, off
-- **Trailer** — hook / unhook
-- **View** — route advisor toggle
+That flips the default layout from the first draft:
+
+**Page 1 — grade and traction.** Retarder, engine brake (Jake), differential lock, lift
+axle (tractor and trailer separately), hazards, beacon. The ones you want going down a
+grade, at a scale, or backing in a yard.
+
+**Page 2 — cameras.** The game numbers them 1–8 and nobody remembers which is which.
+Named instead: Interior, Lean out, Bumper, On wheel, Drive by, Top down, Trailer, Free cam.
+One tap each, exclusive selection. This alone may be the most-used page.
+
+**Page 3 — yard.** Park brake, hook/unhook, engine start/stop, wipers, cab light, horns.
+Things you do stopped, where a hold-to-fire delay costs nothing.
+
+### Not everything is a toggle
+
+Your examples broke the three-type model from the first draft. The real set is five:
+
+| Type | Behaviour | Examples |
+| --- | --- | --- |
+| **toggle** | on/off, state confirmed by telemetry | Jake brake, diff lock, hazards, lift axle |
+| **stepped** | a stage with − and +, current stage read back | retarder, wipers |
+| **exclusive** | one of N, the others clear | cameras |
+| **momentary** | fires on press | horn, cruise set, route advisor |
+| **hold** | fires after ~800 ms | unhook, engine stop |
+
+**The stepper is where the no-automation rule bites, and it's worth being explicit.**
+The game has no "set retarder to stage 2" binding — only increase and decrease. A tidy UI
+would let you tap stage 2 and have the bridge send two keypresses to get there. That is a
+small burst from one press, which crosses the line I set out above.
+
+So the stepper sends **one keypress per tap** and shows the stage read back from telemetry.
+You tap − twice to drop two stages, exactly as you would on the keyboard. Slightly less
+slick, and it keeps one press equal to one keypress with nothing to argue about. A
+"jump to stage" mode can be a setting you turn on yourself, clearly labelled, off by default.
 
 ### Two safety rules, non-negotiable
 
@@ -213,14 +243,32 @@ glance surface**. Your eyes are already on the road and the game; your thumb is 
 phone. If you end up running both devices, controls belong where your hand is and data
 belongs where your eyes are.
 
-### Pressing without looking
+### Pressing without looking — on an iPhone
 
-- Fixed grid positions — a switch does not move between sessions.
-- `navigator.vibrate` on every press, a double pulse on a completed hold. Android only;
-  iOS Safari has no Vibration API, which is worth knowing before choosing a phone for it.
-- Screen Wake Lock so the phone doesn't sleep mid-run, and an installable web app so
-  there's no browser chrome.
-- Touch targets at 64 px minimum, sized up from there as the grid allows.
+iOS has no Vibration API. WebKit does not expose `navigator.vibrate`, and Apple's stated
+reason is abuse potential, so this is unlikely to change. That removes the obvious
+eyes-free confirmation channel and the design has to make it up elsewhere.
+
+**Fewer, bigger targets.** Two columns instead of three, minimum 70 px tall, positionally
+distinct. A grid you can hit by position beats a dense one you have to read. This is the
+primary mitigation and it costs nothing.
+
+**An audible click** on every press, via Web Audio — a 15 ms tick, volume adjustable, and
+switchable off. On iOS the audio context needs a user gesture first, which arming provides.
+This is the reliable confirmation channel on iPhone.
+
+**Haptics as a bonus, not a dependency.** There is a known trick: Safari 17.4's
+`<input type="checkbox" switch>` fires the system haptic engine when toggled, and libraries
+exploit it to get buzz out of an iOS web page. Apple has already patched around some of
+these once, so treat it as a nice-to-have that may stop working, never as the only signal.
+The Setup view carries a real switch you can tap on your own phone to see whether it buzzes.
+
+**Fixed positions.** A switch never moves between sessions, and the thumb bar never moves at
+all. That is what actually makes it operable without looking.
+
+Plus: Screen Wake Lock so the phone doesn't sleep mid-run (supported in recent iOS Safari —
+verify on your device), Add to Home Screen for a standalone window with no Safari chrome,
+and `env(safe-area-inset-*)` so nothing hides under the home indicator.
 
 ### Customizable switches
 
@@ -292,15 +340,18 @@ per-device view memory.
 | --- | --- |
 | Primary device | **Phone.** Portrait and landscape both supported. |
 | Platform | **Windows.** Scancode injection via `ctypes`, no dependencies, ViGEm only if the focus spike demands it. |
-| Control scope | **Everything bindable**, with a user-editable layout rather than a fixed set. |
+| Orientation | **Portrait** to start. Two columns of large targets. |
+| Phone | **iPhone.** No Vibration API — click and target size carry eyes-free use; haptics are a bonus. |
+| Control scope | **Everything bindable**, with a user-editable layout. Defaults are the situational set, not the routine one. |
 | Page separation | **Separate URLs per view**, fixed thumb bar to switch, and no vertical scrolling anywhere. |
 | TruckersMP | Telemetry yes. Control is one-press-one-keypress, never automated — see above, and check the current rules yourself. |
 
 ## Still open
 
-1. **Which switches do you actually reach for mid-drive?** The catalog will hold
-   everything, but page 1 should be the handful you use without thinking. Tell me those
-   and they become the default layout.
-2. **Landscape or portrait** in the mount? It changes which grid shape is the default.
-3. **Android or iPhone?** Only affects whether haptics are available — everything else is
-   identical.
+1. **Does the haptic trick work on your phone?** Tap the switch in the mockup's Setup view.
+   If it buzzes, haptics stay in the plan as a secondary channel; if not, the click carries
+   eyes-free use alone and I'll spend the effort on target size instead.
+2. **Anything missing from page 1?** Trailer brake (trolley valve), axle group selection and
+   cruise are the obvious candidates I left off.
+3. **Landscape later?** Portrait is the start, but a mounted phone often ends up sideways.
+   Worth knowing whether that's a Phase 5 item or never.
