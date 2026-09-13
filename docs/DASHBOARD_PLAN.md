@@ -332,6 +332,64 @@ the real question is usually "can I get this done before I have to be somewhere.
 no mental arithmetic. The "bites first" line picks up the same treatment — a rest stop
 1h 12m away is really only about four minutes of your evening.
 
+### Pay in your time
+
+`$ / real hour` — the job's payout divided by the real minutes it will actually cost you.
+
+This only exists because the time conversion exists, and no screen in the game can show it.
+It is the only way to compare a 280-mile haul against three short runs in the currency that
+actually matters: your evening. A job paying $4,180 over 38 real minutes is $6,600 an hour
+of your life; the same money over two hours is not the same job.
+
+### Room left on purpose
+
+The obvious thing to do with the space left on the screen is fill it with gauges. Don't.
+Oil pressure, water temp, battery voltage and air pressure are all in the telemetry and all
+boring 99% of the time, and a dashboard crowded with steady numbers reads slower than a
+quiet one.
+
+So the remaining space is an **attention strip that is empty in the normal case**:
+
+| Shows | When |
+| --- | --- |
+| Over the limit, with a duration | over the posted limit for more than ~8 s |
+| Air pressure falling | below ~90 psi |
+| Fuel under an hour | range below the next hour of driving |
+| Damage climbing | a step change since the last sample |
+| Engine temp / oil pressure / battery | outside normal band |
+
+Nothing renders when nothing is wrong, and the rest of the screen breathes. This is the
+answer to "we have room": reserve it, don't spend it.
+
+### TruckersMP, when you're on it
+
+The public API at `api.truckersmp.com/v2` is open, unauthenticated JSON. Three endpoints
+earn a place, and the strip only renders when you're actually on MP:
+
+- **`/servers`** — the server you're on, `players` and `queue`, and two flags that change how
+  you drive: `speedlimiter` (whether the server caps you) and `collisions`. Also `promods`
+  and whether it's an event server. Poll on the order of a minute.
+- **`/events`** — the next convoy or event, with its start time, counted down **in real
+  time** next to your own finish estimate. "You finish at 9:42 pm, the convoy starts at
+  10:00" is exactly the composition of the two features, and it is the strongest reason to
+  bother with the API at all.
+- **`/game_time`** — TruckersMP's synchronised clock. Worth noting: on MP the time scale is
+  the server's, not the single-player `local_scale`, so the real-time conversion changes
+  shape there. The measured-ratio fallback already handles this without special-casing.
+
+`/version` (is MP up for this game build?) is useful before you launch, not while driving.
+`/player/{id}` and `/bans` are about your account, not your run.
+
+**What the API cannot do**, so the design shouldn't imply it: it describes *servers*, not
+*you*. There is no position, no nearby players, no "who just cut me off." Anything
+player-local still comes from the game's own telemetry.
+
+Three caveats. This is the only part of the system that needs internet — everything else is
+LAN-only — so it's opt-in and fails quietly to a hidden strip. Published rate limits weren't
+something I could confirm, so cache hard regardless (servers ~60 s, events ~15 min) and
+never poll per frame. And Economy Chest and TruckersMP are mutually exclusive: MP supports
+only ProMods and Grimes' weather, so the two halves of this repo never run at once.
+
 ### Everything else
 
 Speed limit is a first-class element and over-limit is unmissable. Stale telemetry kills
