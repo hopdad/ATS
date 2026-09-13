@@ -48,11 +48,31 @@ Two mechanisms are on the table and the spike picks one:
 
 Start with 1. Fall back to 2 if the spike says focus is a problem.
 
-### Where this must not be used
+### TruckersMP — a calibrated answer
 
-Injecting synthetic input is a single-player and Convoy-with-friends thing. **Do not use
-the control half on TruckersMP** — external input automation is the kind of thing their
-rules exist to cover. The read-only dashboard is unobjectionable anywhere.
+An earlier draft of this plan said flatly "don't use control on TruckersMP." That was
+stronger than the evidence supports, so here is the actual position.
+
+**Reading telemetry is uncontroversial.** Telemetry apps are everywhere in that community
+and TruckersMP publishes an API of its own. No concern.
+
+**One tap sending one keypress is, functionally, a button box.** TruckersMP's published
+rules cover approved mods and make you responsible for your equipment — "keyboards, game
+controllers, mice, steering wheels and similar." The only automation prohibition I could
+find concerns scraping their website, not in-game input. People run Stream Decks and
+button boxes there routinely, and a tap on this dashboard is the same event.
+
+**What would actually be a problem** is automation that plays for you: timed macros,
+sequences that fire on their own, anything reacting to telemetry without a human press, or
+anything touching game memory or the TruckersMP client. That line is worth respecting
+whatever the rules say, and it is a design constraint here — **every command originates
+from a press, and the bridge never synthesises a sequence.** No "auto" anything.
+
+Two caveats I can't remove. I could not retrieve the full current rules text, only
+summaries, so I have not read a clause that explicitly blesses external input. And rules
+change and enforcement is at admin discretion. Check the current rules yourself before
+using the control half there. The safe line, and the one this design holds to, is
+**one press equals one keypress**.
 
 ---
 
@@ -162,32 +182,65 @@ toggle. The UI must not claim to know something it doesn't.
 ## The UI
 
 Interactive mockup: **https://claude.ai/code/artifact/01f62385-b1f3-4ba0-8a37-ebda4993f27d**
+Open it on a phone and it stops being a mockup — it fills the screen and behaves like the app.
 
-The design brief, since this is the part that matters most:
+**Phone first.** Every sizing decision assumes a mounted phone read at a glance and
+operated by thumb, in portrait or landscape. Tablets and second monitors get the same
+views, scaled up; they are not the design target.
 
-**It is read at a glance, at arm's length, while driving.** That is closer to an instrument
-panel than a web page. Big numerics, high contrast, no scrolling mid-drive, touch targets
-sized for a bumpy tap rather than a mouse.
+### Nothing scrolls. Ever.
 
-**One synthesized line beats six gauges.** The in-game route advisor already shows raw
-numbers. What it doesn't tell you is *which constraint bites first* — fuel range, the rest
-timer, or the delivery deadline. The dashboard computes all three and says which one is
-about to be your problem. This is the single strongest reason for a second screen to exist.
+This is the rule the whole layout answers to, and it is the direct fix for swiping while
+driving. Each view is sized to exactly one screen, with `overflow: hidden` while moving.
+When content doesn't fit, it moves to **another page** — never below the fold. A bump in
+the road cannot slide the dashboard out from under your thumb, because there is nowhere
+for it to slide to.
 
-**Speed limit is a first-class element,** not a small icon. Going over is the most common
-avoidable cost in the game, so over-limit is a state change you cannot miss.
+### Views are separate addresses
 
-**Stale data is loud.** If telemetry stops — game paused, alt-tabbed, plugin crashed — the
-numbers visibly go dead and a banner says so. A dashboard that shows a confident 65 mph
-while disconnected is worse than a blank screen.
+`/drive` and `/switches` are separate URLs, not panels of one page. That gives the
+separation you asked for, three ways at once:
 
-**Dark by default, with a real day mode.** Night driving is the common case; a day palette
-is a toggle, not an afterthought.
+- **One phone**: a fixed thumb bar at the bottom switches views. Same position every time,
+  so it becomes muscle memory. Horizontal only — and since nothing scrolls vertically,
+  a sideways swipe can never be confused for scrolling content.
+- **Phone plus second monitor**: open `/switches` on the phone and `/drive` on the
+  monitor. No mode, no setting — just two URLs. Any number of devices can connect at once.
+- **Later, a tablet**: it opens a URL like anything else.
 
-**Three layouts:** landscape tablet (primary), phone portrait (control rail becomes a
-bottom sheet), wide second monitor.
+This is the split worth designing around: **the phone is a touch surface, the monitor is a
+glance surface**. Your eyes are already on the road and the game; your thumb is on the
+phone. If you end up running both devices, controls belong where your hand is and data
+belongs where your eyes are.
 
----
+### Pressing without looking
+
+- Fixed grid positions — a switch does not move between sessions.
+- `navigator.vibrate` on every press, a double pulse on a completed hold. Android only;
+  iOS Safari has no Vibration API, which is worth knowing before choosing a phone for it.
+- Screen Wake Lock so the phone doesn't sleep mid-run, and an installable web app so
+  there's no browser chrome.
+- Touch targets at 64 px minimum, sized up from there as the grid allows.
+
+### Customizable switches
+
+The control set is **data, not markup**:
+
+- The bridge reads `controls.sii` and publishes **every action your game has a binding
+  for** as an available action — so "maybe more" needs no code change. If ATS can bind it,
+  it's in the catalog. Unbound actions appear greyed with the reason.
+- Each action declares its type: **toggle** (closed-loop, state from telemetry),
+  **momentary** (fires on press), or **hold** (fires after ~800 ms — for anything costly).
+- Layout is a saved config: any number of pages, a grid size you pick, actions placed where
+  you want them, labels you can rename. Saved on the bridge, so every device shares it.
+- Editing is locked while the truck is moving. You lay it out parked.
+
+### Everything else
+
+Speed limit is a first-class element and over-limit is unmissable. Stale telemetry kills
+the display visibly rather than showing a confident number from thirty seconds ago. Dark by
+default with a real day mode. And one derived line — **what bites first** — sits above the
+raw numbers, because that's the question the in-game advisor doesn't answer.
 
 ## Phases
 
@@ -202,11 +255,15 @@ three responsive layouts, stale/disconnect handling, day–night. Success: usabl
 tablet for a full run without touching it. **This is the milestone worth having.**
 
 **Phase 3 — Control.** The focus spike first, then keybind discovery from `controls.sii`,
-the injector, the control rail, arm/disarm and hold-to-fire, closed-loop state. Success:
-the beacon comes on from the tablet and the button agrees with the game.
+the injector, a default switch layout, arm/disarm and hold-to-fire, closed-loop state.
+Success: the beacon comes on from the phone and the button agrees with the game.
 
-**Phase 4 — Polish.** Multi-client, per-device layout persistence, trip history from
-recordings, button macros ("night driving": low beam on, interior off).
+**Phase 4 — Make it yours.** The action catalog from every binding the game exposes, the
+layout editor, multiple switch pages, saved server-side so all devices share one layout.
+Success: you build a page-one grid of the switches you actually use, without touching code.
+
+**Phase 5 — Polish.** Wake lock and installable web app, trip history from recordings,
+per-device view memory.
 
 ---
 
@@ -224,15 +281,26 @@ recordings, button macros ("night driving": low beam on, interior off).
 ## Non-goals
 
 - Driving the truck. No steering, throttle or brake — buttons operate switchgear only.
-- TruckersMP. Read-only is fine there; control is not.
+- Automation. Every command comes from a press; the bridge never fires a sequence on its
+  own, on any server. This is what keeps the control half defensible on TruckersMP.
 - Replacing the in-game route advisor. This complements it.
 - A cloud service. It runs on your machine, on your network, and nowhere else.
 
-## Open questions for you
+## Decisions made
 
-1. **Primary device** — phone, tablet, or second monitor? It changes which layout gets the
-   design attention first.
-2. **Windows or Linux/Proton** for the game? Both are workable; the plugin and the
-   injection path differ.
-3. **How far into control?** The full switchgear set above, or a small set you actually
-   reach for while driving?
+| | |
+| --- | --- |
+| Primary device | **Phone.** Portrait and landscape both supported. |
+| Platform | **Windows.** Scancode injection via `ctypes`, no dependencies, ViGEm only if the focus spike demands it. |
+| Control scope | **Everything bindable**, with a user-editable layout rather than a fixed set. |
+| Page separation | **Separate URLs per view**, fixed thumb bar to switch, and no vertical scrolling anywhere. |
+| TruckersMP | Telemetry yes. Control is one-press-one-keypress, never automated — see above, and check the current rules yourself. |
+
+## Still open
+
+1. **Which switches do you actually reach for mid-drive?** The catalog will hold
+   everything, but page 1 should be the handful you use without thinking. Tell me those
+   and they become the default layout.
+2. **Landscape or portrait** in the mount? It changes which grid shape is the default.
+3. **Android or iPhone?** Only affects whether haptics are available — everything else is
+   identical.
