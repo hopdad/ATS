@@ -1,19 +1,27 @@
+# ATS mods and tooling
+
+Mods and utilities for **American Truck Simulator**. Everything here is Python 3.8+ with
+no dependencies.
+
+| | |
+| --- | --- |
+| [**Economy Chest**](#economy-chest) | A money and XP multiplier mod. Default ×10. |
+| [**Mod doctor**](#mod-doctor) | Finds broken packages, file conflicts and dead mods in your mod folder. |
+
+```
+tools/build_mod.py     builds the Economy Chest .scs
+tools/scale_rules.json which economy attributes get scaled, and why
+tools/mod_doctor.py    inspects a mod folder
+pkg/                   manifest + in-game description templates
+dist/                  a prebuilt ×10 package you can use right now
+docs/                  install guide, mod doctor reference
+tests/                 fixtures and smoke tests
+```
+
 # Economy Chest
 
-A money and XP multiplier mod for **American Truck Simulator**. Default build is
-**1000% (×10) money and 1000% (×10) XP** — every job pays ten times stock and awards
-ten times stock experience.
-
-This repo is the mod *source*: a small builder that produces a `.scs` package you drop
-into your ATS mod folder. Multipliers are arguments, so ×10 is only the default.
-
-```
-tools/build_mod.py    builds the .scs
-tools/scale_rules.json which economy attributes get scaled, and why
-pkg/                  manifest + in-game description templates
-dist/                 a prebuilt ×10 package you can use right now
-tests/                fixture + smoke test
-```
+**1000% (×10) money and 1000% (×10) XP** — every job pays ten times stock and awards ten
+times stock experience. Multipliers are arguments, so ×10 is only the default.
 
 ## Quick start
 
@@ -108,11 +116,65 @@ standalone to try the mod out; use `--base` on a profile you care about.
   payout; sleep or skip a few hours for new ones.
 - Removing the mod returns rates to stock and does not claw back what you earned.
 
-## Tests
+# Mod doctor
+
+Answers "why isn't my mod doing anything?" without launching the game.
 
 ```bash
-bash tests/smoke_test.sh
+python3 tools/mod_doctor.py --mods ~/ats/mod --profile ./profile.sii --game-version 1.55
 ```
 
-36 checks covering scaling, preservation of unrelated attributes, archive layout,
-manifest rendering and the failure paths.
+With no `--mods` it uses this platform's ATS mod folder; `--game ets2` switches the
+default to Euro Truck Simulator 2. Three things it reports:
+
+**Packaging problems** — a mod the game quietly ignores. The big one is contents buried in
+a subfolder inside the `.scs`, which makes a mod load absolutely nothing while still
+looking fine in the Mod Manager. Also dangling icon and description references, unknown
+categories, and a `compatible_versions[]` that excludes your build.
+
+**File conflicts** — two mods shipping the same path. Only one wins, and load order decides
+which. Conflicts are grouped by the mods involved, so two map mods sharing 4,000 files are
+one line rather than 4,000, and paths that change how the game *plays* are listed first.
+
+**Mods doing nothing** — a mod whose every file is overridden by something above it. It is
+enabled, it looks healthy, and it has no effect at all. This is the most common cause of
+"my mod isn't working" and it is invisible in-game.
+
+```
+CONFLICTS  (2 group(s), 2 file(s) provided by more than one mod)
+
+  1 shared file:
+    WINS   economy_chest.scs
+    loses  realistic_economy.scs
+    gameplay-affecting:
+      def/economy_data.sii
+
+DOING NOTHING  (every file this mod provides is overridden by something above it)
+  tiny_cargo_tweak.scs
+    fully overridden by: realistic_economy.scs
+    move it higher in the Mod Manager, or remove it
+```
+
+Load order comes from a decrypted `profile.sii` (`--profile`) or a hand-typed list
+(`--order`); position 1 is the top of the Mod Manager list. Without one it still reports
+conflicts but declines to name a winner. `--json` for machine-readable output, `--strict`
+to exit non-zero on findings.
+
+Two limits worth knowing: HashFS-packed mods can't be opened, so conflicts involving them
+are invisible; and detection is file-level, so two mods editing different attributes of the
+same `.sii` still count as a conflict — which is accurate, since the loser's whole file is
+discarded either way.
+
+Full reference: [docs/MOD_DOCTOR.md](docs/MOD_DOCTOR.md).
+
+# Tests
+
+```bash
+bash tests/smoke_test.sh         # Economy Chest builder  - 36 checks
+bash tests/doctor_smoke_test.sh  # mod doctor             - 49 checks
+```
+
+The doctor suite generates a fixture mod folder (`tests/make_fixture_mods.py`) containing
+a well-formed mod, a conflicting one, a fully shadowed one, a wrongly-packed one, one with
+no manifest, one with dangling references, a HashFS package, an unpacked folder mod, and
+both a plain-text and an encrypted profile.
