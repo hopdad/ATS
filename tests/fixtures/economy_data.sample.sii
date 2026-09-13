@@ -1,0 +1,29 @@
+SiiNunit
+{
+economy_data : .economy_data
+{
+	# --- revenue ---
+	revenue_per_km_base: 15
+	revenue_coef_per_km: 0.3
+	cargo_market_revenue_coef_per_km: 1.0
+	driver_revenue_coef_per_km: 0.67
+	driver_cargo_market_revenue_coef_per_km: 0.7
+
+	# --- experience ---
+	exp_cargo_delivery: 1.25
+	exp_free_roam: 0.45
+	exp_road_discovery: 0.75	# per km
+	exp_park_load_bonus: 150
+	exp_resolution: 100
+	exp_some_future_field: 2.5
+
+	# --- untouched economy tuning ---
+	cargo_damage_cost_factor: 0.0015
+	bank_loan_count: 3
+	fine_speeding: 250
+	garage_price[]: 200000
+	garage_price[]: 500000
+	adr_certificate_price: 3000
+	name: "economy"
+}
+}
