@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Smoke test for tools/mod_doctor.py. Run from the repo root: bash tests/doctor_smoke_test.sh
+# Smoke test for mod_doctor.py. Run from anywhere: bash mod-doctor/tests/doctor_smoke_test.sh
 set -uo pipefail
 
-REPO="$(cd "$(dirname "$0")/.." && pwd)"
-cd "$REPO"
-TMP="$REPO/tests/.tmp-doctor"
+PROJECT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$PROJECT"
+TMP="$PROJECT/tests/.tmp-doctor"
 rm -rf "$TMP"; mkdir -p "$TMP"
 MODS="$TMP/mod"
 python3 tests/make_fixture_mods.py "$MODS" >/dev/null
@@ -16,7 +16,7 @@ check(){ if [ "$2" = "$3" ]; then ok "$1"; else bad "$1 (expected '$3', got '$2'
 has()  { if grep -qF "$2" "$TMP/out.txt"; then ok "$1"; else bad "$1 (missing: $2)"; fi; }
 hasnt(){ if grep -qF "$2" "$TMP/out.txt"; then bad "$1 (unexpected: $2)"; else ok "$1"; fi; }
 
-run() { python3 tools/mod_doctor.py "$@" >"$TMP/out.txt" 2>"$TMP/err.txt"; echo $?; }
+run() { python3 mod_doctor.py "$@" >"$TMP/out.txt" 2>"$TMP/err.txt"; echo $?; }
 
 echo "scan with profile order"
 RC=$(run --mods "$MODS" --profile "$MODS/profile.sii" --game-version 1.55)
@@ -95,7 +95,7 @@ check "json shape" "$?" "0"
 
 echo "version matching"
 python3 - <<'PY'
-import sys; sys.path.insert(0, "tools")
+import sys; sys.path.insert(0, ".")
 from mod_doctor import version_matches as m
 assert m("1.5*", "1.55")
 assert m("1.55.*", "1.55.1")

@@ -1,19 +1,20 @@
 #!/usr/bin/env bash
-# Smoke test for tools/build_mod.py. Run from the repo root: bash tests/smoke_test.sh
+# Smoke test for build_mod.py. Run from anywhere: bash economy-chest/tests/smoke_test.sh
 set -uo pipefail
 
-REPO="$(cd "$(dirname "$0")/.." && pwd)"
-cd "$REPO"
-BUILD="$REPO/tests/.tmp"
+PROJECT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$PROJECT"
+BUILD="$PROJECT/tests/.tmp"
 rm -rf "$BUILD"; mkdir -p "$BUILD"
-FIX="$REPO/tests/fixtures/economy_data.sample.sii"
+FIX="$PROJECT/tests/fixtures/economy_data.sample.sii"
 PASS=0; FAIL=0
 
 ok()   { PASS=$((PASS+1)); echo "  PASS  $1"; }
 bad()  { FAIL=$((FAIL+1)); echo "  FAIL  $1"; }
 check(){ if [ "$2" = "$3" ]; then ok "$1"; else bad "$1 (expected '$3', got '$2')"; fi; }
 
-build() { python3 tools/build_mod.py "$@" >"$BUILD/out.txt" 2>"$BUILD/err.txt"; }
+TMPOUT="$BUILD/out.txt"
+build() { python3 build_mod.py "$@" >"$BUILD/out.txt" 2>"$BUILD/err.txt"; }
 
 echo "patch mode, 10x/10x"
 build --base "$FIX" --money 10 --xp 10 --out "$BUILD/a.scs"
@@ -68,6 +69,49 @@ check "two compat lines" "$(grep -c 'compatible_versions' "$BUILD/f/manifest.sii
 build --base "$FIX" --game-versions "" --out "$BUILD/g.scs"
 unzip -o -q "$BUILD/g.scs" -d "$BUILD/g"
 check "compat omitted" "$(grep -c 'compatible_versions' "$BUILD/g/manifest.sii")" "0"
+
+echo "workshop packaging"
+build --standalone --workshop --out "$BUILD/w.scs"
+check "exits 0" "$?" "0"
+check "versions.sii written"  "$(ls "$BUILD/workshop/versions.sii" 2>/dev/null | wc -l)" "1"
+check "package archive written" "$(ls "$BUILD/workshop/economy_chest.zip" 2>/dev/null | wc -l)" "1"
+check "upload folder holds nothing else" "$(ls "$BUILD/workshop" | wc -l)" "2"
+check "package_name matches the archive" \
+      "$(grep -c 'package_name: "economy_chest"' "$BUILD/workshop/versions.sii")" "1"
+check "single package is the fallback" \
+      "$(grep -c 'compatible_versions' "$BUILD/workshop/versions.sii")" "0"
+unzip -o -q "$BUILD/workshop/economy_chest.zip" -d "$BUILD/wz"
+check "archive carries the manifest" "$(ls "$BUILD/wz/manifest.sii" | wc -l)" "1"
+check "archive carries the def"      "$(ls "$BUILD/wz/def/economy_data.sii" | wc -l)" "1"
+build --standalone --workshop --workshop-package my_pack --out "$BUILD/w2.scs"
+check "custom package name" "$(ls "$BUILD/workshop/my_pack.zip" 2>/dev/null | wc -l)" "1"
+check "no workshop folder unless asked" "$(ls "$BUILD/nowork" 2>/dev/null | wc -l)" "0"
+
+echo "steam preview validation"
+python3 - "$BUILD" <<'PY'
+import struct, sys, zlib
+from pathlib import Path
+def png(path, w, h):
+    raw = b"".join(b"\x00" + bytes([40, 60, 80] * w) for _ in range(h))
+    def chunk(tag, data):
+        c = tag + data
+        return struct.pack(">I", len(data)) + c + struct.pack(">I", zlib.crc32(c))
+    Path(path).write_bytes(b"\x89PNG\r\n\x1a\n"
+        + chunk(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, 2, 0, 0, 0))
+        + chunk(b"IDAT", zlib.compress(raw)) + chunk(b"IEND", b""))
+png(sys.argv[1] + "/good.png", 640, 360)
+png(sys.argv[1] + "/bad.png", 276, 162)
+PY
+build --standalone --workshop --preview "$BUILD/good.png" --out "$BUILD/p.scs"
+check "valid preview passes"  "$(grep -c 'Steam wants' "$TMPOUT")" "0"
+check "valid preview lands outside the upload folder" "$(ls "$BUILD/preview.png" 2>/dev/null | wc -l)" "1"
+check "upload folder still holds only two files" "$(ls "$BUILD/workshop" | wc -l)" "2"
+rm -f "$BUILD/preview.png"
+build --standalone --workshop --preview "$BUILD/bad.png" --out "$BUILD/p2.scs"
+check "wrong size is reported" "$(grep -c '276x162, Steam wants 640x360' "$TMPOUT")" "1"
+check "bad preview is not copied" "$(ls "$BUILD/preview.png" 2>/dev/null | wc -l)" "0"
+build --standalone --workshop --preview "$BUILD/missing.png" --out "$BUILD/p3.scs"
+check "missing preview is reported" "$(grep -c 'preview not found' "$TMPOUT")" "1"
 
 echo "failure modes"
 build --money 10; check "no --base and no --standalone fails" "$?" "2"

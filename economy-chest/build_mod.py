@@ -26,8 +26,8 @@ import sys
 import zipfile
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parent.parent
-RULES_PATH = Path(__file__).resolve().parent / "scale_rules.json"
+PROJECT = Path(__file__).resolve().parent
+RULES_PATH = PROJECT / "scale_rules.json"
 
 # key, optional [] or [n] index, value, optional trailing # comment
 ATTR_RE = re.compile(
@@ -222,6 +222,78 @@ def render_template(path: Path, values: dict[str, str]) -> str:
     return text
 
 
+def image_size(path: Path) -> tuple[int, int] | None:
+    """Width and height of a PNG or JPEG, without a third-party imaging library."""
+    data = path.read_bytes()
+    if data[:8] == b"\x89PNG\r\n\x1a\n" and data[12:16] == b"IHDR":
+        return (int.from_bytes(data[16:20], "big"), int.from_bytes(data[20:24], "big"))
+    if data[:2] == b"\xff\xd8":
+        i = 2
+        while i < len(data) - 9:
+            if data[i] != 0xFF:
+                i += 1
+                continue
+            marker, length = data[i + 1], int.from_bytes(data[i + 2:i + 4], "big")
+            if marker in (0xC0, 0xC1, 0xC2, 0xC3, 0xC5, 0xC6, 0xC7,
+                          0xC9, 0xCA, 0xCB, 0xCD, 0xCE, 0xCF):
+                return (int.from_bytes(data[i + 7:i + 9], "big"),
+                        int.from_bytes(data[i + 5:i + 7], "big"))
+            i += 2 + length
+    return None
+
+
+# The SCS Workshop Uploader wants a folder holding versions.sii and one archive per
+# game-version package, and nothing else. The preview image is chosen separately in the
+# uploader, so it must stay outside that folder or the upload is rejected.
+PREVIEW_SIZE = (640, 360)
+PREVIEW_MAX_BYTES = 1024 * 1024
+
+
+def check_preview(path: Path) -> list[str]:
+    problems = []
+    if not path.is_file():
+        return [f"preview not found: {path}"]
+    if path.suffix.lower() not in (".jpg", ".jpeg", ".png"):
+        problems.append(f"preview {path.name} should be a .jpg or .png")
+    size = image_size(path)
+    if size is None:
+        problems.append(f"could not read the dimensions of {path.name}")
+    elif size != PREVIEW_SIZE:
+        problems.append(f"preview is {size[0]}x{size[1]}, Steam wants "
+                        f"{PREVIEW_SIZE[0]}x{PREVIEW_SIZE[1]}")
+    if path.stat().st_size > PREVIEW_MAX_BYTES:
+        problems.append(f"preview is {path.stat().st_size / 1024:.0f} KB, the limit is 1 MB")
+    return problems
+
+
+def write_workshop(stage: Path, out_dir: Path, package: str,
+                   compatible: list[str] | None = None) -> Path:
+    """Build the folder the SCS Workshop Uploader consumes.
+
+    versions.sii maps a game version to the archive that serves it, and exactly one entry
+    must carry no compatible_versions[] -- that entry is the fallback for every version
+    not explicitly listed. A single-package upload is therefore always unversioned here,
+    whatever the manifest says: pinning the only package to "1.5*" would serve nothing at
+    all to a player on any other build.
+
+    The manifest's own compatible_versions[] is a different thing and stays as it is; it
+    drives the Mod Manager's compatibility warning, not which archive Steam hands over.
+    """
+    if out_dir.exists():
+        shutil.rmtree(out_dir)
+    out_dir.mkdir(parents=True)
+
+    pack(stage, out_dir / f"{package}.zip")
+
+    lines = ["SiiNunit", "{", f"package_version_info : .{package}", "{",
+             f'\tpackage_name: "{package}"']
+    for pattern in (compatible or []):
+        lines.append(f'\tcompatible_versions[]: "{pattern}"')
+    lines += ["}", "}", ""]
+    (out_dir / "versions.sii").write_text("\n".join(lines), encoding="utf-8")
+    return out_dir
+
+
 def pack(stage: Path, out: Path) -> None:
     out.parent.mkdir(parents=True, exist_ok=True)
     if out.exists():
@@ -246,9 +318,9 @@ def main(argv: list[str] | None = None) -> int:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
             "examples:\n"
-            "  python3 tools/build_mod.py --base ~/ats_def_extracted\n"
-            "  python3 tools/build_mod.py --standalone --money 10 --xp 10\n"
-            "  python3 tools/build_mod.py --base ./economy_data.sii --money 5 --xp 20\n"
+            "  python3 build_mod.py --base ~/ats_def_extracted\n"
+            "  python3 build_mod.py --standalone --money 10 --xp 10\n"
+            "  python3 build_mod.py --base ./economy_data.sii --money 5 --xp 20\n"
         ),
     )
     parser.add_argument("--base", type=Path,
@@ -268,6 +340,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--game-versions", default="1.5*",
                         help="comma-separated compatible_versions[] entries, or '' to omit")
     parser.add_argument("--icon", type=Path, help="276x162 .jpg to show in the Mod Manager")
+    parser.add_argument("--workshop", action="store_true",
+                        help="also build the folder the SCS Workshop Uploader consumes")
+    parser.add_argument("--workshop-package", default="economy_chest",
+                        help="package name inside versions.sii (default: economy_chest)")
+    parser.add_argument("--preview", type=Path,
+                        help="640x360 Steam preview image to validate (chosen separately in the uploader)")
     args = parser.parse_args(argv)
 
     if not args.base and not args.standalone:
@@ -300,8 +378,8 @@ def main(argv: list[str] | None = None) -> int:
 
     name = args.name or f"Economy Chest - Money x{args.money:g} & XP x{args.xp:g}"
     stem = f"economy_chest_money_x{args.money:g}_xp_x{args.xp:g}".replace(".", "_")
-    out = args.out or REPO / "build" / f"{stem}.scs"
-    stage = REPO / "build" / stem
+    out = args.out or PROJECT / "build" / f"{stem}.scs"
+    stage = PROJECT / "build" / stem
 
     if stage.exists():
         shutil.rmtree(stage)
@@ -319,7 +397,7 @@ def main(argv: list[str] | None = None) -> int:
     compat_lines = "".join(f'\tcompatible_versions[]: "{v}"\n' for v in compat)
 
     (stage / "manifest.sii").write_text(
-        render_template(REPO / "pkg" / "manifest.sii.tmpl", {
+        render_template(PROJECT / "pkg" / "manifest.sii.tmpl", {
             "VERSION": args.mod_version,
             "DISPLAY_NAME": name,
             "AUTHOR": args.author,
@@ -329,7 +407,7 @@ def main(argv: list[str] | None = None) -> int:
         encoding="utf-8",
     )
     (stage / "mod_description.txt").write_text(
-        render_template(REPO / "pkg" / "mod_description.txt.tmpl", {
+        render_template(PROJECT / "pkg" / "mod_description.txt.tmpl", {
             "MONEY": f"{args.money:g}",
             "XP": f"{args.xp:g}",
             "MONEY_PCT": f"{args.money * 100:g}%",
@@ -341,6 +419,16 @@ def main(argv: list[str] | None = None) -> int:
 
     pack(stage, out)
 
+    workshop_dir = None
+    preview_problems: list[str] = []
+    if args.workshop:
+        workshop_dir = write_workshop(stage, out.parent / "workshop", args.workshop_package)
+    if args.preview:
+        preview_problems = check_preview(args.preview)
+        if not preview_problems and workshop_dir:
+            # Deliberately beside the upload folder, never inside it.
+            shutil.copyfile(args.preview, out.parent / ("preview" + args.preview.suffix.lower()))
+
     print(f"source        {source_note}")
     print(f"multipliers   money x{args.money:g}   XP x{args.xp:g}")
     print(f"scaled        {len(changes)} attribute(s)")
@@ -350,10 +438,22 @@ def main(argv: list[str] | None = None) -> int:
         print("\nwarnings")
         for warning in warnings:
             print(f"  ! {warning}")
+    if preview_problems:
+        print("\npreview")
+        for problem in preview_problems:
+            print(f"  ! {problem}")
+
     print(f"\nstaged        {stage}")
     print(f"built         {out}")
     print("\nCopy it into your ATS mod folder, then enable it in the Mod Manager:")
     print("  Documents/American Truck Simulator/mod/")
+
+    if workshop_dir:
+        print(f"\nworkshop      {workshop_dir}")
+        print(f"  {args.workshop_package}.zip + versions.sii, and nothing else -- that is the rule.")
+        print("  versions.sii lists no compatible_versions, so this package serves every build.")
+        print("  Point the SCS Workshop Uploader's content folder at it.")
+        print("  The 640x360 preview is chosen separately in the uploader, so it stays outside.")
     return 0
 
 

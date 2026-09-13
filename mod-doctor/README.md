@@ -1,7 +1,13 @@
 # Mod doctor
 
+Answers "why isn't my mod doing anything?" without launching the game. Finds packages the
+game quietly ignores, files two mods both claim, and mods that are enabled but completely
+overridden.
+
+Single file, no dependencies — copy `mod_doctor.py` anywhere and run it.
+
 ```bash
-python3 tools/mod_doctor.py --mods ~/ats/mod --profile ./profile.sii --game-version 1.55
+python3 mod_doctor.py --mods ~/ats/mod --profile ./profile.sii --game-version 1.55
 ```
 
 Python 3.8+, no dependencies. With no `--mods` it uses this platform's ATS mod folder;
@@ -50,7 +56,7 @@ A mod higher in the list overrides the ones below it.
 the active mod list is in `profile.sii`:
 
 ```bash
-python3 tools/mod_doctor.py --profile ~/.local/share/American\ Truck\ Simulator/profiles/*/profile.sii
+python3 mod_doctor.py --profile ~/.local/share/American\ Truck\ Simulator/profiles/*/profile.sii
 ```
 
 Profiles are normally saved encrypted — the file starts with `ScsC` rather than `SiiN`.
@@ -67,7 +73,7 @@ traffic_tweaks.scs
 ```
 
 ```bash
-python3 tools/mod_doctor.py --order my_order.txt
+python3 mod_doctor.py --order my_order.txt
 ```
 
 If the resulting `LOAD ORDER` block reads upside down compared to your Mod Manager, pass
@@ -117,3 +123,14 @@ Move it up or uninstall it.
   file from the loser is discarded, including the parts that did not overlap.
 - No opinion on load-order *convention* (fixes above trucks above maps). It reports what
   actually collides in your folder; ordering beyond that is your call.
+
+## Tests
+
+```bash
+bash tests/doctor_smoke_test.sh
+```
+
+49 checks against a generated fixture mod folder (`tests/make_fixture_mods.py`) containing
+a well-formed mod, a conflicting one, a fully shadowed one, a wrongly-packed one, one with
+no manifest, one with dangling references, a HashFS package, an unpacked folder mod, and
+both a plain-text and an encrypted profile.

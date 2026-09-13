@@ -1,6 +1,6 @@
 # Cab Deck bridge
 
-Phase 1 of [the dashboard plan](../docs/DASHBOARD_PLAN.md): read telemetry, derive the
+Phase 1 of [the plan](docs/PLAN.md): read telemetry, derive the
 things the game does not tell you, and make all of it developable without the game running.
 
 Python 3.10+, standard library only.
