@@ -7,12 +7,13 @@ no dependencies.
 | --- | --- |
 | [**Economy Chest**](#economy-chest) | A money and XP multiplier mod. Default ×10. |
 | [**Mod doctor**](#mod-doctor) | Finds broken packages, file conflicts and dead mods in your mod folder. |
-| [**Cab Deck**](docs/DASHBOARD_PLAN.md) | Planned: a second-screen telemetry dashboard with truck controls. Plan and UI mockup only. |
+| [**Cab Deck**](dashboard/) | A second-screen telemetry dashboard with truck controls. Phase 1 building — [plan](docs/DASHBOARD_PLAN.md). |
 
 ```
 tools/build_mod.py     builds the Economy Chest .scs
 tools/scale_rules.json which economy attributes get scaled, and why
 tools/mod_doctor.py    inspects a mod folder
+dashboard/             Cab Deck bridge — telemetry, derived metrics, simulator
 pkg/                   manifest + in-game description templates
 dist/                  a prebuilt ×10 package you can use right now
 docs/                  install guide, mod doctor reference, dashboard plan
@@ -173,6 +174,7 @@ Full reference: [docs/MOD_DOCTOR.md](docs/MOD_DOCTOR.md).
 ```bash
 bash tests/smoke_test.sh         # Economy Chest builder  - 36 checks
 bash tests/doctor_smoke_test.sh  # mod doctor             - 49 checks
+bash dashboard/run_tests.sh      # Cab Deck bridge        - 49 tests
 ```
 
 The doctor suite generates a fixture mod folder (`tests/make_fixture_mods.py`) containing
