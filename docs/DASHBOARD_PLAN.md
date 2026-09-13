@@ -283,6 +283,55 @@ The control set is **data, not markup**:
   you want them, labels you can rename. Saved on the bridge, so every device shares it.
 - Editing is locked while the truck is moving. You lay it out parked.
 
+### Real time, not game time
+
+The question you're actually asking when you glance at the phone is "how much longer is
+this run going to take **me**?" — and nothing in the game answers it. Every clock in ATS is
+in game time.
+
+**The conversion is not a constant, which is what makes this worth building.** ATS runs
+game time about **20× real time on the open road, but about 3× inside a city**, so the map
+feels the right size at both scales. The SDK reports the current factor as
+`local_scale`, so the bridge doesn't have to guess.
+
+Dividing the whole remaining journey by the current scale is therefore wrong exactly where
+it matters most — the last few miles into town, where each game minute suddenly costs you
+almost seven times more real time. So the estimate is split: the final approach is costed at
+city scale, everything before it at highway scale.
+
+```
+real minutes left = highway game-minutes / local_scale
+                  + approach game-minutes / city scale
+```
+
+The bridge also **measures** the ratio continuously — game-time delta over real-time delta,
+smoothed — as a cross-check and a fallback. Measuring costs nothing and means a time-scale
+mod, or a plugin that doesn't expose `local_scale`, changes nothing.
+
+Three cases the naive version gets wrong, and what to do:
+
+- **Paused.** Game time stops, the ratio goes to zero, the estimate goes to infinity. Show
+  "paused", not a number.
+- **Sleeping or a ferry.** Game time fast-forwards; the measured ratio spikes. Discard
+  out-of-band samples. There's a pleasant truth hiding here worth surfacing: a nine-hour
+  rest costs you about ten real seconds, so **resting is nearly free in your time** and
+  only driving is expensive.
+- **The estimate lengthens as you approach town.** That's correct behaviour, not drift —
+  and the display names the scale in use so it reads as an explanation rather than a glitch.
+
+What the dashboard shows:
+
+```
+YOUR TIME TO BARSTOW
+38 min                    finish  9:42 pm
+2h 04m game · 20× highway · incl. 4 mi city at 3×
+```
+
+The **finish time on your own wall clock** is the more useful of the two numbers, because
+the real question is usually "can I get this done before I have to be somewhere." It needs
+no mental arithmetic. The "bites first" line picks up the same treatment — a rest stop
+1h 12m away is really only about four minutes of your evening.
+
 ### Everything else
 
 Speed limit is a first-class element and over-limit is unmissable. Stale telemetry kills
@@ -341,6 +390,8 @@ per-device view memory.
 | Primary device | **Phone.** Portrait and landscape both supported. |
 | Platform | **Windows.** Scancode injection via `ctypes`, no dependencies, ViGEm only if the focus spike demands it. |
 | Orientation | **Portrait** to start. Two columns of large targets. |
+| Stepper | **Confirmed** — one tap, one keypress, stage read back. No jump-to-stage by default. |
+| Eyes-free | **Audio click** is the primary channel on iPhone; haptics are a bonus if the Safari trick holds. |
 | Phone | **iPhone.** No Vibration API — click and target size carry eyes-free use; haptics are a bonus. |
 | Control scope | **Everything bindable**, with a user-editable layout. Defaults are the situational set, not the routine one. |
 | Page separation | **Separate URLs per view**, fixed thumb bar to switch, and no vertical scrolling anywhere. |
@@ -351,7 +402,10 @@ per-device view memory.
 1. **Does the haptic trick work on your phone?** Tap the switch in the mockup's Setup view.
    If it buzzes, haptics stay in the plan as a secondary channel; if not, the click carries
    eyes-free use alone and I'll spend the effort on target size instead.
-2. **Anything missing from page 1?** Trailer brake (trolley valve), axle group selection and
+2. **How long is the city approach, really?** The real-time estimate assumes the last 4 miles
+   run at city scale. That number wants calibrating against a few actual runs — Phase 1's
+   recorder makes it measurable rather than guessed.
+3. **Anything missing from page 1?** Trailer brake (trolley valve), axle group selection and
    cruise are the obvious candidates I left off.
-3. **Landscape later?** Portrait is the start, but a mounted phone often ends up sideways.
+4. **Landscape later?** Portrait is the start, but a mounted phone often ends up sideways.
    Worth knowing whether that's a Phase 5 item or never.
