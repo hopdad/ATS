@@ -7,6 +7,7 @@ no dependencies.
 | --- | --- |
 | [**Economy Chest**](#economy-chest) | A money and XP multiplier mod. Default ×10. |
 | [**Mod doctor**](#mod-doctor) | Finds broken packages, file conflicts and dead mods in your mod folder. |
+| [**Cab Deck**](docs/DASHBOARD_PLAN.md) | Planned: a second-screen telemetry dashboard with truck controls. Plan and UI mockup only. |
 
 ```
 tools/build_mod.py     builds the Economy Chest .scs
@@ -14,7 +15,7 @@ tools/scale_rules.json which economy attributes get scaled, and why
 tools/mod_doctor.py    inspects a mod folder
 pkg/                   manifest + in-game description templates
 dist/                  a prebuilt ×10 package you can use right now
-docs/                  install guide, mod doctor reference
+docs/                  install guide, mod doctor reference, dashboard plan
 tests/                 fixtures and smoke tests
 ```
 
