@@ -3,6 +3,9 @@
 **1000% (×10) money and 1000% (×10) XP** — every job pays ten times stock and awards ten
 times stock experience. Multipliers are arguments, so ×10 is only the default.
 
+> **Working on this at the gaming PC?** [HANDOFF.md](HANDOFF.md) lists what still
+> needs verifying against a real install, and why.
+
 ## Quick start
 
 A ready-made ×10 package is checked in:

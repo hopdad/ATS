@@ -24,6 +24,18 @@ could share that code, but single-file tools are how mod tooling actually gets u
 lift `mod_doctor.py` out on its own and run it. A shared package would trade that away for
 a few dozen deduplicated lines.
 
+## Waiting on a machine with the game installed
+
+All three projects were built in a container with no ATS install, so each carries a handoff
+doc listing what is unverified and how to check it:
+
+- [economy-chest/HANDOFF.md](economy-chest/HANDOFF.md) — build against real def files,
+  confirm the scaled attribute names, correct the reference defaults, publish.
+- [mod-doctor/HANDOFF.md](mod-doctor/HANDOFF.md) — run against a real mod folder, and
+  confirm the load-order direction that every conflict verdict rests on.
+- [cab-deck/README.md](cab-deck/README.md) — derive the plugin struct layout from its
+  header, then record a real run to calibrate the city approach.
+
 ## Tests
 
 ```bash

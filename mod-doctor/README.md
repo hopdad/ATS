@@ -6,6 +6,10 @@ overridden.
 
 Single file, no dependencies — copy `mod_doctor.py` anywhere and run it.
 
+> **Working on this at the gaming PC?** [HANDOFF.md](HANDOFF.md) lists what still needs
+> verifying against a real mod folder — starting with the load-order direction, which
+> every conflict verdict depends on.
+
 ```bash
 python3 mod_doctor.py --mods ~/ats/mod --profile ./profile.sii --game-version 1.55
 ```
