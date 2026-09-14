@@ -1,0 +1,55 @@
+{
+  "_comment": [
+    "Which economy_data.sii attributes the builder scales, and by which multiplier.",
+    "Money and XP are scaled independently so you can, for example, run 10x money with 1x XP.",
+    "",
+    "money_fields: the four per-km salary coefficients. Job payout is roughly",
+    "  revenue_per_km_base * <the coefficient for that job type> * distance * cargo/urgency modifiers,",
+    "  so scaling the coefficients scales take-home pay for every job type uniformly while leaving",
+    "  the relative balance between freight market / cargo market / quick jobs / AI drivers intact.",
+    "revenue_per_km_base is deliberately NOT scaled: it would compound with the coefficients.",
+    "",
+    "xp_fields: XP awarded per unit of distance (or as a flat bonus, for the parking entries).",
+    "exp_fields_never_scale: exp_* attributes that are thresholds/resolutions rather than XP amounts.",
+    "Any other exp_* attribute found in a base file is reported but left alone unless --scale-all-exp."
+  ],
+
+  "money_fields": [
+    "revenue_coef_per_km",
+    "cargo_market_revenue_coef_per_km",
+    "driver_revenue_coef_per_km",
+    "driver_cargo_market_revenue_coef_per_km"
+  ],
+
+  "xp_fields": [
+    "exp_cargo_delivery",
+    "exp_free_roam",
+    "exp_road_discovery",
+    "exp_park_load_bonus",
+    "exp_park_double_bonus",
+    "exp_park_bonus"
+  ],
+
+  "exp_field_pattern": "^exp_",
+
+  "exp_fields_never_scale": [
+    "exp_resolution",
+    "exp_level_resolution"
+  ],
+
+  "_reference_defaults_comment": [
+    "Stock values used ONLY by --standalone mode, which has no base file to read from.",
+    "They are community-reported reference values and differ between game versions and",
+    "between ATS and ETS2. Patch mode (--base) ignores this table entirely and scales",
+    "whatever your game actually ships. Prefer patch mode."
+  ],
+  "reference_defaults": {
+    "revenue_coef_per_km": 0.3,
+    "cargo_market_revenue_coef_per_km": 1.0,
+    "driver_revenue_coef_per_km": 0.67,
+    "driver_cargo_market_revenue_coef_per_km": 0.7,
+    "exp_cargo_delivery": 1.25,
+    "exp_free_roam": 0.45,
+    "exp_road_discovery": 0.75
+  }
+}

@@ -1,0 +1,12 @@
+build/
+*/build/
+*/tests/.tmp/
+*/tests/.tmp-doctor/
+cab-deck/runs/
+__pycache__/
+*.pyc
+
+# Workshop upload folders and previews are generated right before publishing,
+# and the archive duplicates the .scs. The quick-start .scs is committed; these are not.
+*/dist/workshop/
+*/dist/preview.*
